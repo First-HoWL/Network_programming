@@ -9,6 +9,8 @@ class Server
     static TcpListener listener; 
     static int port = 5000;
     static int clients = 1;
+    static readonly object lockObj = new object();
+
     static void Main(string[] args)
     {
         Console.OutputEncoding = UTF8Encoding.UTF8;
@@ -44,7 +46,11 @@ class Server
         
         string name = Encoding.UTF8.GetString(buffer);
         Console.WriteLine($"Name {name} | {endPoint.ToString()}");
-        byte[] buffer2 = Encoding.UTF8.GetBytes(Convert.ToString(clients++));
+        byte[] buffer2;
+        lock (lockObj)
+        {
+            buffer2 = Encoding.UTF8.GetBytes(Convert.ToString(clients++));
+        }
         stream.Write(buffer2, 0, buffer2.Length);
     }
 
