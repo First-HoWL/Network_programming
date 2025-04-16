@@ -10,6 +10,21 @@ class Server
     static int port = 5000;
     static int clients = 1;
     static readonly object lockObj = new object();
+    static void sendMessage(NetworkStream stream, string message)
+    {
+        if (stream == null)
+            return;
+        byte[] buffer = Encoding.UTF8.GetBytes(message);
+        stream.Write(buffer, 0, buffer.Length);
+    }
+    static string GetMessage(NetworkStream stream, int buffsize = 1024)
+    {
+        if (stream == null)
+            return "";
+        byte[] buffer = new byte[buffsize];
+        stream.Read(buffer, 0, buffer.Length);
+        return Encoding.UTF8.GetString(buffer);
+    }
 
     static void Main(string[] args)
     {
@@ -27,10 +42,18 @@ class Server
             Thread thread = new Thread(HandleClient);
             thread.Start(client);
         }
-
-
-
     }
+
+    static List<NetworkStream> streams = new List<NetworkStream>();
+
+    static void Broadcast(string message)
+    {
+        foreach(var item in streams)
+        {
+            sendMessage(item, message);
+        }
+    }
+
     static void HandleClient(object obj)
     {
         TcpClient client = (TcpClient)obj;
@@ -39,19 +62,19 @@ class Server
 
         var endPoint = client.Client.RemoteEndPoint.ToString();
         
-
-        NetworkStream stream = client.GetStream();
-        byte[] buffer = new byte[1024];
-        stream.Read(buffer, 0, buffer.Length);
-        
-        string name = Encoding.UTF8.GetString(buffer);
+        var stream = client.GetStream();
+        streams.Add(stream);
+        string name = GetMessage(stream);
         Console.WriteLine($"Name {name} | {endPoint.ToString()}");
-        byte[] buffer2;
+
+        
         lock (lockObj)
         {
-            buffer2 = Encoding.UTF8.GetBytes(Convert.ToString(clients++));
+            sendMessage(stream, Convert.ToString(clients++));
         }
-        stream.Write(buffer2, 0, buffer2.Length);
+
+        Broadcast(name);
+
     }
 
 }
