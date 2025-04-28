@@ -3,8 +3,13 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Http;
+using System.Text.Json;
 
-
+class Message
+{
+    public string user { get; set; }
+    public string text { get; set; }
+}
 class Server
 {
     static TcpListener listener;
@@ -16,7 +21,7 @@ class Server
         if (stream == null)
             return;
         byte[] buffer = Encoding.UTF8.GetBytes(message);
-        stream.Write(buffer, 0, buffsize);
+        stream.Write(buffer, 0, buffer.Length);
     }
     static string GetMessage(NetworkStream stream, int buffsize = 1024)
     {
@@ -24,19 +29,8 @@ class Server
             return "";
         byte[] buffer = new byte[buffsize];
         stream.Read(buffer, 0, buffsize);
-        string ret = Encoding.UTF8.GetString(buffer);
+        string ret = Encoding.UTF8.GetString(buffer).Split(char.MinValue).First();
 
-        while (true)
-        {
-            if (ret[ret.Length - 1] == ' ')
-            {
-                ret = ret.Remove(ret.Length - 1, 1);
-            }
-            else
-            {
-                break;
-            }
-        }
         return ret;
     }
 
@@ -60,12 +54,38 @@ class Server
     }
 
     static List<TcpClient> Clients = new List<TcpClient>();
-
+    static void Broadcast(Message message)
+    {
+        Console.WriteLine($"{message.user}: {message.text}");
+        foreach (var item in Clients.ToArray())
+        {
+            try { 
+            sendMessage(item.GetStream(), JsonSerializer.Serialize
+                (
+                new Message { user = message.user, text = message.text }
+                ));
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+    }
     static void Broadcast(string message)
     {
-        foreach (var item in Clients)
+        Console.WriteLine($"Broadcast: {message}");
+        foreach (var item in Clients.ToArray())
         {
             sendMessage(item.GetStream(), message);
+        }
+    }
+    static void BroadcastExceptSOMEONE(string message, TcpClient client)
+    {
+        Console.WriteLine($"Broadcast: {message}");
+        foreach (var item in Clients.ToArray())
+        {
+            if (item != client)
+                sendMessage(item.GetStream(), message);
         }
     }
 
@@ -89,14 +109,22 @@ class Server
 
         try
         {
-            GetMessage(client.GetStream());
+            while (true)
+            {
+                Message? clientMessage = 
+                    JsonSerializer.Deserialize<Message>(GetMessage(stream));
+                if (clientMessage != null)
+                    Broadcast($"{clientMessage.user}: {clientMessage.text}");
+            }
+           
         }
         catch (Exception ex)
         {
-            Broadcast($"{name} ({endPoint}) Disconected!");
+            BroadcastExceptSOMEONE($"{name} ({endPoint}) Disconected!", client);
         }
-        finally { 
-            lock (client) 
+        finally
+        {
+            lock (client)
                 Clients.Remove(client);
 
             client.Close();
