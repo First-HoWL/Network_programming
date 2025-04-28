@@ -19,7 +19,7 @@ class Server
     static int clients = 1;
     static readonly object lockObj = new object();
     static Random rand = new Random();
-    static ConsoleColor Color;
+    //static ConsoleColor Color;
 
     static List<ConsoleColor> colors = new List<ConsoleColor>
         {
@@ -105,7 +105,7 @@ class Server
         TcpClient client = (TcpClient)obj;
         Console.WriteLine();
         Console.WriteLine("New Client");
-        ConsoleColor color = colors[rand.Next(0, colors.Count())];
+        ConsoleColor Color = colors[rand.Next(0, colors.Count())];
         var endPoint = client.Client.RemoteEndPoint.ToString();
         Clients.Add(client);
         var stream = client.GetStream();
@@ -117,7 +117,7 @@ class Server
         {
             sendMessage(stream, Convert.ToString(clients++));
         }
-        Broadcast(new Message{ user = "SERVER", text = $"{name} ({endPoint}) Connect to Server", color = color });
+        Broadcast(new Message{ user = "SERVER", text = $"{name} ({endPoint}) Connect to Server", color = Color });
         try
         {
             while (true)
