@@ -7,13 +7,14 @@ class Message
 {
     public string user { get; set; }
     public string text { get; set; }
+    public ConsoleColor color { get; set; }
 }
 class Client
 {
     static string serverIP = "127.0.0.1";
     static int port = 5000;
     static NetworkStream? stream = null;
-
+    static ConsoleColor Color;
     static void sendMessage(string message, int buffsize = 1024)
     {
         if (stream == null)
@@ -39,7 +40,11 @@ class Client
         {
             try
             {
-                Console.WriteLine(GetMessage());
+                Message? clientMessage =
+                    JsonSerializer.Deserialize<Message>(GetMessage());
+                Console.ForegroundColor = clientMessage.color;
+                Console.WriteLine($"{clientMessage.user}: {clientMessage.text}");
+                Console.ResetColor();
             }
             catch (Exception ex) { break; }
         }
