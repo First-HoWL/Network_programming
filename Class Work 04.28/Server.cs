@@ -4,11 +4,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.Http;
 using System.Text.Json;
+using System.Drawing;
 
 class Message
 {
     public string user { get; set; }
     public string text { get; set; }
+    public ConsoleColor color { get; set; }
 }
 class Server
 {
@@ -16,6 +18,14 @@ class Server
     static int port = 5000;
     static int clients = 1;
     static readonly object lockObj = new object();
+    static Random rand = new Random();
+    static ConsoleColor Color;
+
+    static List<ConsoleColor> colors = new List<ConsoleColor>
+        {
+            ConsoleColor.Green, ConsoleColor.Red, ConsoleColor.DarkGreen, ConsoleColor.Magenta, ConsoleColor.Blue, ConsoleColor.Cyan, ConsoleColor.Magenta, ConsoleColor.Yellow,
+        };
+
     static void sendMessage(NetworkStream stream, string message, int buffsize = 1024)
     {
         if (stream == null)
@@ -33,6 +43,7 @@ class Server
 
         return ret;
     }
+    
 
     static void Main(string[] args)
     {
@@ -56,14 +67,14 @@ class Server
     static List<TcpClient> Clients = new List<TcpClient>();
     static void Broadcast(Message message)
     {
-        Console.WriteLine($"{message.user}: {message.text}");
+        Console.Write($"{message.user}: ");
+        Console.ForegroundColor = message.color;
+        Console.WriteLine(message.text);
+        Console.ResetColor();
         foreach (var item in Clients.ToArray())
         {
             try { 
-            sendMessage(item.GetStream(), JsonSerializer.Serialize
-                (
-                new Message { user = message.user, text = message.text }
-                ));
+                sendMessage(item.GetStream(), JsonSerializer.Serialize(message));
             }
             catch(Exception ex)
             {
@@ -79,7 +90,7 @@ class Server
             sendMessage(item.GetStream(), message);
         }
     }
-    static void BroadcastExceptSOMEONE(string message, TcpClient client)
+    static void Broadcast(string message, TcpClient client)
     {
         Console.WriteLine($"Broadcast: {message}");
         foreach (var item in Clients.ToArray())
@@ -94,7 +105,7 @@ class Server
         TcpClient client = (TcpClient)obj;
         Console.WriteLine();
         Console.WriteLine("New Client");
-
+        ConsoleColor color = colors[rand.Next(0, colors.Count())];
         var endPoint = client.Client.RemoteEndPoint.ToString();
         Clients.Add(client);
         var stream = client.GetStream();
@@ -106,7 +117,7 @@ class Server
         {
             sendMessage(stream, Convert.ToString(clients++));
         }
-
+        Broadcast(new Message{ user = "SERVER", text = $"{name} ({endPoint}) Connect to Server", color = color });
         try
         {
             while (true)
@@ -114,13 +125,13 @@ class Server
                 Message? clientMessage = 
                     JsonSerializer.Deserialize<Message>(GetMessage(stream));
                 if (clientMessage != null)
-                    Broadcast($"{clientMessage.user}: {clientMessage.text}");
+                    Broadcast(new Message {user = clientMessage.user, text = clientMessage.text, color = Color });
             }
            
         }
         catch (Exception ex)
         {
-            BroadcastExceptSOMEONE($"{name} ({endPoint}) Disconected!", client);
+            Broadcast($"{name} ({endPoint}) Disconected!", client);
         }
         finally
         {
