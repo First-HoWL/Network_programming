@@ -2,7 +2,12 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.IO;
-
+using System.Text.Json;
+class Message
+{
+    public string user { get; set; }
+    public string text { get; set; }
+}
 class Client
 {
     static string serverIP = "127.0.0.1";
@@ -14,7 +19,7 @@ class Client
         if (stream == null)
             return;
         byte[] buffer = Encoding.UTF8.GetBytes(message);
-        stream.Write(buffer, 0, buffsize);
+        stream.Write(buffer, 0, buffer.Length);
     }
     static string GetMessage(int buffsize = 1024)
     {
@@ -22,42 +27,14 @@ class Client
             return "";
         byte[] buffer = new byte[buffsize];
         stream.Read(buffer, 0, buffsize);
-        string ret = Encoding.UTF8.GetString(buffer);
+        string ret = Encoding.UTF8.GetString(buffer).Split(char.MinValue).First();
 
-        while (true)
-        {
-            if (ret[ret.Length - 1] == ' ')
-            {
-                ret = ret.Remove(ret.Length - 1, 1);
-            }
-            else
-            {
-                break;
-            }
-        }
         return ret;
 
     }
 
-    static void Main(string[] args)
+    static void ReadingFromServer()
     {
-        Console.OutputEncoding = UTF8Encoding.UTF8;
-        Console.InputEncoding = UTF8Encoding.UTF8;
-
-        Console.Write("Type your name: ");
-        string a = Console.ReadLine();
-
-
-        TcpClient tcpClient = new TcpClient(serverIP, port);
-        Console.WriteLine("Succes!");
-
-        stream = tcpClient.GetStream();
-
-        sendMessage(a);
-        string number = GetMessage();
-
-        Console.WriteLine($"You are {Convert.ToInt32(number)} client");
-
         while (true)
         {
             try
@@ -65,8 +42,40 @@ class Client
                 Console.WriteLine(GetMessage());
             }
             catch (Exception ex) { break; }
-            Console.WriteLine("Type Enter to exit");
-            Console.ReadLine();
         }
+    } 
+
+    static void Main(string[] args)
+    {
+        Console.OutputEncoding = UTF8Encoding.UTF8;
+        Console.InputEncoding = UTF8Encoding.UTF8;
+
+        Console.Write("Type your name: ");
+        string name = Console.ReadLine();
+
+
+        TcpClient tcpClient = new TcpClient(serverIP, port);
+        Console.WriteLine("Succes!");
+
+        stream = tcpClient.GetStream();
+
+        sendMessage(name);
+        string number = GetMessage();
+
+        Console.WriteLine($"You are {Convert.ToInt32(number)} client");
+
+        Thread serverOutputThread = new Thread(ReadingFromServer);
+        serverOutputThread.Start();
+
+        while (true)
+        {
+            string text = Console.ReadLine();
+            sendMessage(
+                JsonSerializer.Serialize(
+                    new Message { user = name, text = text }));
+        }
+        
+        Console.WriteLine("Type Enter to exit");
+        Console.ReadLine();
     }
 }
