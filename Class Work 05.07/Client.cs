@@ -107,7 +107,7 @@ class UDPClientApp
     {
         //client.Client.Bind(new IPEndPoint(IPAddress.Parse(serverIP), port));
         client.Send(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(player)), ServerEP);
-        Thread.Sleep(2000);
+        //Thread.Sleep(2000);
         while (true)
         {
             try
