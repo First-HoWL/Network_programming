@@ -43,14 +43,26 @@ class Server
     static Dictionary<IPEndPoint, Player> Players =
         new Dictionary<IPEndPoint, Player>();
 
+    static Dictionary<IPEndPoint, DateTime> PlayersDateTime =
+        new Dictionary<IPEndPoint, DateTime>();
+
     static List<IPEndPoint> points = new List<IPEndPoint>();
     static List<User> Users = new List<User>();
+    static readonly object lockPlayers = new object();
+    static readonly object lockPDT = new object();
+    static readonly object lockPoints = new object();
 
 
     static Player[] GetResponseForClient(IPEndPoint client)
     {
         List<Player> response = new List<Player>();
-        foreach (var player in Players)
+        Dictionary<IPEndPoint, Player> Players2;
+        lock (lockPlayers)
+        {
+            Players2 = Players;
+        }
+
+        foreach (var player in Players2)
         {
             if (!player.Key.Equals(client))
             {
@@ -75,13 +87,15 @@ class Server
 
     static void Broadcast()
     {
-        foreach (var b in points)
-        {
-            Player[] response = GetResponseForClient(b);
-            var a = JsonSerializer.Serialize(response);
-            Console.WriteLine(a);
-            byte[] data1 = Encoding.UTF8.GetBytes(a);
-            Server1.Send(data1, b);
+        lock (lockPoints) { 
+            foreach (var b in points)
+            {
+                Player[] response = GetResponseForClient(b);
+                var a = JsonSerializer.Serialize(response);
+                Console.WriteLine(a);
+                byte[] data1 = Encoding.UTF8.GetBytes(a);
+                Server1.Send(data1, b);
+            }
         }
     }
 
@@ -109,14 +123,36 @@ class Server
         return "";
     }
 
+    static void CheckTime()
+    {
+        while (true) {
+            Thread.Sleep(1000);
+            foreach (var PDateTime in PlayersDateTime)
+            {
+                if (DateTime.Now.Second - PDateTime.Value.Second >= 15)
+                {
+                    lock (lockPoints)
+                        lock (lockPDT)
+                            lock (lockPlayers) { 
+                                PlayersDateTime.Remove(PDateTime.Key);
+                                points.Remove(PDateTime.Key);
+                                Players.Remove(PDateTime.Key);
+                            }
+                }
+            }
+        }
+    }
+
+
     
     static UdpClient Server1 = new UdpClient(port);
     static void Main(string[] args)
     {
         Console.OutputEncoding = UTF8Encoding.UTF8;
         Console.InputEncoding = UTF8Encoding.UTF8;
-
-        
+        // Console.WriteLine(DateTime.Now - DateTime.Now.AddHours(1));
+        Thread thread = new Thread(CheckTime);
+        thread.Start();
         IPEndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
         Console.WriteLine("Очіквання повідомлень...");
         while (true)
@@ -126,15 +162,26 @@ class Server
             Player player = JsonSerializer.Deserialize<Player>(text);
             if (player != null)
             {
+
                 if (!Players.ContainsKey(remoteEP))
                 {
-                    Players.Add(remoteEP, player);
-                    points.Add(remoteEP);
+                    lock (lockPlayers)
+                        lock (lockPDT)
+                            lock (lockPlayers)
+                            {
+                                Players.Add(remoteEP, player);
+                                PlayersDateTime.Add(remoteEP, DateTime.Now);
+                                points.Add(remoteEP);
+                            }
                     Console.WriteLine($"New Connection({remoteEP})!");
                 }
                 else
                 {
-                    Players[remoteEP] = player;
+                    lock (lockPlayers)
+                        lock (lockPDT) { 
+                            Players[remoteEP] = player;
+                            PlayersDateTime[remoteEP] = DateTime.Now;
+                        }
                 }
                 //Player[] response = new Player[Players.Count - 1];
                 //foreach (Player pl in Players.Values)
