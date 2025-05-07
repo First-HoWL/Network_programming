@@ -14,13 +14,16 @@ class Player
     public int Y { get; set; }
     public char Charset { get; set; }
 
-    public Player(int x, int y, char charset = '○')
+    public ConsoleColor color { get; set; }
+
+    public Player(int x, int y, ConsoleColor color, char charset = '○')
     {
-        X = x;
-        Y = y;
+        this.color = color;
+        this.X = x;
+        this.Y = y;
         this.Charset = charset;
     }
-    public Player() : this(0, 0, '○') { }
+    public Player() : this(0, 0, ConsoleColor.Black, '○') { }
 
 }
 
@@ -39,6 +42,10 @@ class User
 
 class Server
 {
+    static List<ConsoleColor> colors = new List<ConsoleColor>
+        {
+            ConsoleColor.Red, ConsoleColor.DarkGreen, ConsoleColor.Magenta, ConsoleColor.Blue, ConsoleColor.Cyan, ConsoleColor.Magenta, ConsoleColor.Yellow,
+        };
     static int port = 5037;
     static Dictionary<IPEndPoint, Player> Players =
         new Dictionary<IPEndPoint, Player>();
@@ -138,13 +145,14 @@ class Server
                                 points.Remove(PDateTime.Key);
                                 Players.Remove(PDateTime.Key);
                             }
+                    Console.WriteLine($"{PDateTime.Key} Deleted!");
                 }
             }
         }
     }
 
 
-    
+    static Random rand = new Random();
     static UdpClient Server1 = new UdpClient(port);
     static void Main(string[] args)
     {
@@ -160,11 +168,13 @@ class Server
             byte[] data = Server1.Receive(ref remoteEP);
             string text = Encoding.UTF8.GetString(data);
             Player player = JsonSerializer.Deserialize<Player>(text);
+            
             if (player != null)
             {
 
                 if (!Players.ContainsKey(remoteEP))
                 {
+                    player.color = colors[rand.Next(0, colors.Count())];
                     lock (lockPlayers)
                         lock (lockPDT)
                             lock (lockPlayers)
@@ -174,6 +184,13 @@ class Server
                                 points.Add(remoteEP);
                             }
                     Console.WriteLine($"New Connection({remoteEP})!");
+
+                    
+                    var a = JsonSerializer.Serialize(player);
+                    Console.WriteLine(a);
+                    byte[] data1 = Encoding.UTF8.GetBytes(a);
+                    Server1.Send(data1, remoteEP);
+
                 }
                 else
                 {
@@ -183,9 +200,7 @@ class Server
                             PlayersDateTime[remoteEP] = DateTime.Now;
                         }
                 }
-                //Player[] response = new Player[Players.Count - 1];
-                //foreach (Player pl in Players.Values)
-                //    if (player != pl) response.Append(pl);
+                
 
                 
                 Broadcast();
