@@ -9,7 +9,7 @@ class Message
 {
     public string user { get; set; }
     public string text { get; set; }
-    //public ConsoleColor color { get; set; }
+    public ConsoleColor color { get; set; }
 }
 
 class Player
@@ -18,13 +18,16 @@ class Player
     public int Y { get; set; }
     public char Charset { get; set; }
 
-    public Player(int x, int y, char charset = '○')
+    public ConsoleColor color { get; set; }
+
+    public Player(int x, int y, ConsoleColor color, char charset = '○')
     {
-        X = x;
-        Y = y;
+        this.color = color;
+        this.X = x;
+        this.Y = y;
         this.Charset = charset;
     }
-    public Player() : this(0, 0, '○') { }
+    public Player() : this(0, 0, ConsoleColor.White, '○') { }
 
 }
 
@@ -73,7 +76,11 @@ class Field
 
                 Player? p = GetPlayerByPosition(x, y);
                 if (p == null) Console.Write("  ");
-                else Console.Write("[]");
+                else {
+                    Console.ForegroundColor = p.color;
+                    Console.Write("[]");
+                    Console.ForegroundColor = ForegroundColor;
+                };
 
             }
             Console.ResetColor();
@@ -112,10 +119,24 @@ class UDPClientApp
         {
             try
             {
-                Player[] Players =
+                Player[] Players = new Player[] { };
+                Player Player = new Player();
+                var a = client.Receive(ref ServerEP);
+                try {
+                    Players =
                     JsonSerializer.Deserialize<Player[]>(
-                        Encoding.UTF8.GetString(client.Receive(ref ServerEP)).Split('\0').First()
+                        Encoding.UTF8.GetString(a).Split('\0').First()
                         );
+                }
+                catch {
+                    Player =
+                    JsonSerializer.Deserialize<Player>(
+                        Encoding.UTF8.GetString(a).Split('\0').First()
+                        );
+                    player = Player;
+                }
+                
+                
 
                 lock (lockObj)
                 {
