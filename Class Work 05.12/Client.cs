@@ -53,6 +53,7 @@ class Client
             }
             catch (Exception ex) {
                 Console.WriteLine(ex.Message);
+                // Environment.Exit(0);
                 break; }
         }
     }
