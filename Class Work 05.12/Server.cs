@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Drawing;
 using System.Reflection;
+using System.IO;
 
 class Message
 {
@@ -129,7 +130,7 @@ class Server
             if (GameStarted)
                 foreach (var PDateTime in ClientsTime)
                 {
-                    if (DateTime.Now.Second - PDateTime.Value.Second >= 8)
+                    if (DateTime.Now.Second - PDateTime.Value.Second >= secToAnswer)
                     {
                         foreach (var PDateTime2 in ClientsTime)
                         {
@@ -137,13 +138,15 @@ class Server
                         }
                         CurrentPlayer = ClientsINGame[ClientsINGame.IndexOf(CurrentPlayer) == ClientsINGame.Count - 1 ? 0 : ClientsINGame.IndexOf(CurrentPlayer) + 1];
                         Broadcast(new Message { user = "Server", text = PlayerName(CurrentPlayer) + "\'s turn" });
+                        sendMessage(CurrentPlayer.GetStream(), JsonSerializer.Serialize(new Message { user = "Server", text = $"You had {secToAnswer} sec to answer" }));
+
 
                     }
                 }
         }
     }
 
-
+    static int secToAnswer = 10;
     static int readyPlayers;
     static bool GameStarted = false;
     static int number;
@@ -207,6 +210,7 @@ class Server
                                     CurrentPlayer = ClientsINGame[ClientsINGame.IndexOf(CurrentPlayer) == ClientsINGame.Count - 1 ? 0 : ClientsINGame.IndexOf(CurrentPlayer) + 1];
                                     Thread.Sleep(200);
                                     Broadcast(new Message { user = "Server", text = PlayerName(CurrentPlayer) + "\'s turn" });
+                                    sendMessage(CurrentPlayer.GetStream(), JsonSerializer.Serialize(new Message { user = "Server", text = $"You had {secToAnswer} sec to answer" }));
                                 }
                             }
                             catch (Exception e)
@@ -237,7 +241,9 @@ class Server
                             ClientsINGame.Add(clt);
                         CurrentPlayer = ClientsINGame[0];
                         Broadcast(new Message { user = "Server", text = PlayerName(CurrentPlayer) + "\'s turn" });
-                    } 
+                        sendMessage(CurrentPlayer.GetStream(), JsonSerializer.Serialize(new Message { user = "Server", text = $"You had {secToAnswer} sec to answer" }));
+
+                    }
                 }
                 else if (clientMessage != null)
                     Broadcast(new Message { user = clientMessage.user, text = clientMessage.text });
